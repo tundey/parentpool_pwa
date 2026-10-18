@@ -120,14 +120,70 @@
           ParentPool Version 2.0 (PWA Enabled)
         </div>
       </div>
+	  
+<!-- CONTRIBUTORS ADMIN SECTION -->
+<section class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8 col-span-full">
+  <div class="flex items-center justify-between mb-6">
+    <h2 class="text-xl font-extrabold text-pool-dark">Manage Contributors</h2>
+  </div>
+
+  <div class="overflow-x-auto">
+    <table class="w-full text-left border-collapse">
+      <thead>
+        <tr class="border-b border-gray-200 text-xs font-bold uppercase tracking-wider text-gray-400">
+          <th class="py-3 px-4">Sort</th>
+          <th class="py-3 px-4">Name</th>
+          <th class="py-3 px-4">Email</th>
+          <th class="py-3 px-4">Phone</th>
+          <th class="py-3 px-4">Preferred Method</th>
+          <th class="py-3 px-4 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="admin-contributors-table-body" class="divide-y divide-gray-100 text-sm font-medium text-gray-700">
+        <!-- Dynamically populated -->
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- RECIPIENTS ADMIN SECTION -->
+<section class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 col-span-full">
+  <div class="flex items-center justify-between mb-6">
+    <h2 class="text-xl font-extrabold text-pool-dark">Manage Recipients</h2>
+  </div>
+
+  <div class="overflow-x-auto">
+    <table class="w-full text-left border-collapse">
+      <thead>
+        <tr class="border-b border-gray-200 text-xs font-bold uppercase tracking-wider text-gray-400">
+          <th class="py-3 px-4">Sort</th>
+          <th class="py-3 px-4">Name</th>
+          <th class="py-3 px-4">Email</th>
+          <th class="py-3 px-4">Phone</th>
+          <th class="py-3 px-4">Preferred Method</th>
+          <th class="py-3 px-4 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="admin-recipients-table-body" class="divide-y divide-gray-100 text-sm font-medium text-gray-700">
+        <!-- Dynamically populated -->
+      </tbody>
+    </table>
+  </div>
+</section>
+
+	  
 
     </div>
 
     <!-- FOOTER STATUS & UTILS -->
     <div class="flex flex-col sm:flex-row items-center justify-between text-xs text-gray-400 py-4 border-t border-gray-200">
-      <div>ParentPool Admin Console</div>
-      <div class="mt-2 sm:mt-0"><span class="font-bold text-pool-dark">System Status</span> Operational</div>
-    </div>
+		<!-- Centered Last Update Date -->
+		<div id="last-updated-footer" class="my-2 sm:my-0 text-center font-medium text-gray-400">
+		  Last Updated: --
+		</div>
+	
+      <div class="mt-2 sm:mt-0"><span class="font-bold text-pool-dark">System Status: </span> <span class="font-bold text-pool-teal">Connected</span></div>
+    </div>	
 
   </main>
 
@@ -146,10 +202,104 @@
       <div id="login-error-msg" class="mt-4 p-3 bg-red-50 text-red-600 rounded-xl text-xs font-semibold hidden"></div>
     </div>
   </div>
+  
+<!-- EDIT CONTRIBUTOR MODAL -->
+<div id="edit-contributor-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+  <div class="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl">
+    <h3 class="text-xl font-extrabold text-pool-dark mb-4">Edit Contributor</h3>
+    <form id="edit-contributor-form" class="space-y-4">
+      <input type="hidden" id="edit-contributor-id">
+      
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Name</label>
+        <input type="text" id="edit-contributor-name" required class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pool-teal">
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Email Address</label>
+        <input type="email" id="edit-contributor-email" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pool-teal">
+        <p id="edit-email-error" class="text-red-500 text-xs mt-1 hidden">Please enter a valid email address format (e.g., name@example.com).</p>
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Phone Number</label>
+        <input type="text" id="edit-contributor-phone" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pool-teal">
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Preferred Payment Method</label>
+        <select id="edit-contributor-method" required class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pool-orange bg-white">
+          <option value="" disabled selected>Select a payment method</option>
+          <option value="Venmo">Venmo</option>
+          <option value="Zelle">Zelle</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Sort Order</label>
+        <input type="number" id="edit-contributor-sort" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pool-teal">
+      </div>
+
+      <div class="flex justify-end gap-3 mt-6">
+        <button type="button" onclick="closeEditContributorModal()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-semibold transition">Cancel</button>
+        <button type="submit" class="px-4 py-2 bg-pool-teal hover:bg-teal-700 text-white rounded-xl text-xs font-semibold transition shadow-sm">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- EDIT RECIPIENT MODAL -->
+<div id="edit-recipient-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+  <div class="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl">
+    <h3 class="text-xl font-extrabold text-pool-dark mb-4">Edit Recipient</h3>
+    <form id="edit-recipient-form" class="space-y-4">
+      <input type="hidden" id="edit-recipient-id">
+      
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Name</label>
+        <input type="text" id="edit-recipient-name" required class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pool-orange">
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Email Address</label>
+        <input type="email" id="edit-recipient-email" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pool-orange">
+        <p id="edit-recipient-email-error" class="text-red-500 text-xs mt-1 hidden">Please enter a valid email address format (e.g., name@example.com).</p>
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Phone Number</label>
+        <input type="text" id="edit-recipient-phone" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pool-orange">
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Preferred Payment Method</label>
+        <select id="edit-recipient-method" required class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pool-orange bg-white">
+          <option value="" disabled selected>Select a payment method</option>
+          <option value="Venmo">Venmo</option>
+          <option value="Zelle">Zelle</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Sort Order</label>
+        <input type="number" id="edit-recipient-sort" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pool-orange">
+      </div>
+
+      <div class="flex justify-end gap-3 mt-6">
+        <button type="button" onclick="closeEditRecipientModal()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-semibold transition">Cancel</button>
+        <button type="submit" class="px-4 py-2 bg-pool-orange hover:bg-orange-700 text-white rounded-xl text-xs font-semibold transition shadow-sm">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+  
 
   <!-- MODULE SCRIPTS -->
   <script type="module" src="js/firebase-config.js"></script>
   <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/admin.js"></script>
 
   <!-- SERVICE WORKER & CACHE MAINTENANCE LOGIC -->
   <script>

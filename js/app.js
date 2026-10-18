@@ -199,7 +199,6 @@ function renderContributors(contributors) {
       <td class="py-3 px-4 text-gray-600">${escapeHtml(txMethod)}</td>
       <td class="py-3 px-4 text-right space-x-1">
         <button onclick="viewContributorDetails('${escapeHtml(contributorId)}')" class="text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg text-xs font-semibold transition">Details</button>
-        <button onclick="editContributorTransaction('${lastTx ? lastTx.Id : ''}')" class="admin-only text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-2.5 py-1 rounded-lg text-xs font-semibold transition">Edit</button>
         <button onclick="addContribution('${escapeHtml(contributorId)}')" class="admin-only text-white bg-pool-teal hover:bg-teal-700 px-2.5 py-1 rounded-lg text-xs font-semibold transition shadow-sm">Add Contribution</button>
         <button onclick="sendReminder('${escapeHtml(contributorId)}')" class="admin-only text-amber-700 bg-amber-50 hover:bg-amber-100 px-2.5 py-1 rounded-lg text-xs font-semibold transition">Send Reminder</button>
       </td>
@@ -269,7 +268,6 @@ function renderRecipients(recipients) {
       <td class="py-3 px-4 text-gray-600">${escapeHtml(txMethod)}</td>
       <td class="py-3 px-4 text-right space-x-1">
         <button onclick="viewRecipientDetails('${escapeHtml(recipientId)}')" class="text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg text-xs font-semibold transition">Details</button>
-        <button onclick="editRecipientTransaction('${lastTx ? lastTx.Id : ''}')" class="admin-only text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-2.5 py-1 rounded-lg text-xs font-semibold transition">Edit</button>
         <button onclick="sendAllowance('${escapeHtml(recipientId)}')" class="admin-only text-white bg-pool-teal hover:bg-teal-700 px-2.5 py-1 rounded-lg text-xs font-semibold transition shadow-sm">Send Allowance</button>
       </td>
     `;
