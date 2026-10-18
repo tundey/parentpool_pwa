@@ -72,11 +72,27 @@ document.addEventListener('DOMContentLoaded', () => {
           if (!parsedData.Contributors || !parsedData.Recipients) {
             throw new Error('Invalid pool JSON structure. Missing Contributors or Recipients arrays.');
           }
+		  
+		// 2a. If the main-pool already exists, back it up first
+		const mainPoolRef = doc(db, "pools", "main-pool");
+		const mainPoolSnap = await getDoc(mainPoolRef);
 
-          // 3. Store data in Firebase Firestore under the single master document "main-pool"
-          const poolDocRef = doc(db, 'pools', 'main-pool');
-          
-          await setDoc(poolDocRef, {
+		if (mainPoolSnap.exists()) {
+		  const currentData = mainPoolSnap.data();
+		  
+		  // Generate a clean timestamp string safe for a Firestore document ID
+		  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+		  const backupDocId = `main-pool_${timestamp}`;
+		  
+		  const backupRef = doc(db, "pools", backupDocId);
+		  
+		  // Save current data to the backup document ID
+		  await setDoc(backupRef, currentData);
+		  console.log(`Backup created successfully: pools/${backupDocId}`);
+		}	
+
+          // 3. Store data in Firebase Firestore under the single master document "main-pool"         
+          await setDoc(mainPoolRef, {
             ...parsedData,
             ImportedAt: new Date().toISOString()
           });

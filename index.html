@@ -85,7 +85,7 @@
       <!-- Cash On Hand Card -->
       <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col justify-between">
         <span class="text-xs font-bold uppercase tracking-wider text-gray-400">Cash On Hand</span>
-        <div id="kpi-cash" class="text-4xl font-extrabold text-pool-teal mt-2">$300</div>
+        <div id="kpi-cash" class="text-4xl font-extrabold text-pool-teal mt-2"></div>
       </div>
 
       <!-- Contributions Card -->
@@ -182,6 +182,215 @@
       <div id="login-error-msg" class="mt-4 p-3 bg-red-50 text-red-600 rounded-xl text-xs font-semibold hidden"></div>
     </div>
   </div>
+  
+  <!-- ADD CONTRIBUTION MODAL -->
+<div id="add-contribution-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+  <div class="bg-white rounded-3xl p-8 max-w-2xl w-full shadow-2xl relative">
+    <button onclick="closeAddContributionModal()" class="absolute top-6 right-6 text-gray-400 hover:text-gray-600 transition">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+    </button>
+    
+    <h3 id="add-contribution-title" class="text-xl font-extrabold text-pool-dark mb-6">Add Contribution</h3>
+    
+    <form id="add-contribution-form" class="space-y-6">
+      <input type="hidden" id="add-contrib-contributor-id">
+
+      <div class="grid grid-cols-4 gap-4">
+        <!-- Month Dropdown -->
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Month</label>
+          <select id="add-contrib-month" required class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pool-teal bg-white">
+            <option value="January">January</option>
+            <option value="February">February</option>
+            <option value="March">March</option>
+            <option value="April">April</option>
+            <option value="May">May</option>
+            <option value="June">June</option>
+            <option value="July">July</option>
+            <option value="August">August</option>
+            <option value="September">September</option>
+            <option value="October">October</option>
+            <option value="November">November</option>
+            <option value="December">December</option>
+          </select>
+        </div>
+
+        <!-- Date Input -->
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Date</label>
+          <input type="date" id="add-contrib-date" required class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pool-teal">
+        </div>
+
+        <!-- Amount Input -->
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Amount</label>
+          <input type="number" id="add-contrib-amount" placeholder="$0" required class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pool-teal">
+        </div>
+
+        <!-- Method Dropdown (Venmo, Zelle, Other) -->
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Method</label>
+          <select id="add-contrib-method" required class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pool-teal bg-white">
+            <option value="Venmo">Venmo</option>
+            <option value="Zelle">Zelle</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Notes Textarea -->
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Notes</label>
+        <textarea id="add-contrib-notes" rows="3" placeholder="Optional notes" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pool-teal"></textarea>
+      </div>
+
+      <!-- Footer Action & Live KPI -->
+      <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl text-xs font-bold transition shadow-sm">
+          Save Contribution
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- CONTRIBUTOR DETAILS MODAL -->
+<div id="contributor-details-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+  <div class="bg-white rounded-3xl p-8 max-w-4xl w-full shadow-2xl relative max-h-[90vh] flex flex-col">
+    <!-- Close Button -->
+    <button onclick="closeContributorDetailsModal()" class="absolute top-6 right-6 text-gray-400 hover:text-gray-600 transition">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+    </button>
+    
+    <!-- Modal Header (Name & Email) -->
+    <h3 id="details-modal-title" class="text-xl font-extrabold text-pool-dark mb-6">Contributor Details</h3>
+
+    <!-- Transactions Table Container -->
+    <div class="overflow-y-auto flex-1 pr-2">
+      <table class="w-full text-left border-collapse">
+        <thead>
+          <tr class="border-b border-gray-200 text-xs font-bold uppercase tracking-wider text-gray-400">
+            <th class="py-3 px-4">Year</th>
+            <th class="py-3 px-4">Month</th>
+            <th class="py-3 px-4">Amount</th>
+            <th class="py-3 px-4">Date Received</th>
+            <th class="py-3 px-4">Method</th>
+            <th class="py-3 px-4 text-right">Action</th>
+          </tr>
+        </thead>
+        <tbody id="details-modal-tbody" class="divide-y divide-gray-100 text-sm font-medium text-gray-700">
+          <!-- Dynamically populated -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- SEND ALLOWANCE MODAL -->
+<div id="send-allowance-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+  <div class="bg-white rounded-3xl p-8 max-w-2xl w-full shadow-2xl relative">
+    <!-- Close Button -->
+    <button onclick="closeSendAllowanceModal()" class="absolute top-6 right-6 text-gray-400 hover:text-gray-600 transition">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+    </button>
+    
+    <h3 id="send-allowance-title" class="text-xl font-extrabold text-pool-dark mb-6">Send Allowance</h3>
+    
+    <form id="send-allowance-form" class="space-y-6">
+      <input type="hidden" id="allowance-recipient-id">
+
+      <div class="grid grid-cols-4 gap-4">
+        <!-- Month Dropdown -->
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Month</label>
+          <select id="allowance-month" required class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pool-orange bg-white">
+            <option value="" disabled>Select a Month</option>
+            <option value="January">January</option>
+            <option value="February">February</option>
+            <option value="March">March</option>
+            <option value="April">April</option>
+            <option value="May">May</option>
+            <option value="June">June</option>
+            <option value="July">July</option>
+            <option value="August">August</option>
+            <option value="September">September</option>
+            <option value="October">October</option>
+            <option value="November">November</option>
+            <option value="December">December</option>
+          </select>
+        </div>
+
+        <!-- Date Input -->
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Date</label>
+          <input type="date" id="allowance-date" required class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pool-orange">
+        </div>
+
+        <!-- Amount Input -->
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Amount</label>
+          <input type="number" id="allowance-amount" placeholder="$0" required class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pool-orange">
+        </div>
+
+        <!-- Method Dropdown (Venmo, Zelle, Other) -->
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Method</label>
+          <select id="allowance-method" required class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pool-orange bg-white">
+            <option value="Venmo">Venmo</option>
+            <option value="Zelle">Zelle</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Notes Textarea -->
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Notes</label>
+        <textarea id="allowance-notes" rows="3" placeholder="Optional notes" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pool-orange"></textarea>
+      </div>
+
+      <!-- Footer Action & Live KPI -->
+      <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+        <button type="submit" class="px-6 py-2.5 bg-pool-orange hover:bg-orange-700 text-white rounded-xl text-xs font-semibold transition shadow-sm">
+          Send Allowance
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- RECIPIENT DETAILS MODAL -->
+<div id="recipient-details-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+  <div class="bg-white rounded-3xl p-8 max-w-4xl w-full shadow-2xl relative max-h-[90vh] flex flex-col">
+    <!-- Close Button -->
+    <button onclick="closeRecipientDetailsModal()" class="absolute top-6 right-6 text-gray-400 hover:text-gray-600 transition">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+    </button>
+    
+    <!-- Modal Header (Name & Email) -->
+    <h3 id="recipient-details-modal-title" class="text-xl font-extrabold text-pool-dark mb-6">Recipient Details</h3>
+
+    <!-- Transactions Table Container -->
+    <div class="overflow-y-auto flex-1 pr-2">
+      <table class="w-full text-left border-collapse">
+        <thead>
+          <tr class="border-b border-gray-200 text-xs font-bold uppercase tracking-wider text-gray-400">
+            <th class="py-3 px-4">Year</th>
+            <th class="py-3 px-4">Month</th>
+            <th class="py-3 px-4">Amount</th>
+            <th class="py-3 px-4">Date Received</th>
+            <th class="py-3 px-4">Method</th>
+            <th class="py-3 px-4 text-right">Action</th>
+          </tr>
+        </thead>
+        <tbody id="recipient-details-modal-tbody" class="divide-y divide-gray-100 text-sm font-medium text-gray-700">
+          <!-- Dynamically populated -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 
   <!-- SCRIPTS -->
   <script type="module" src="js/firebase-config.js"></script>

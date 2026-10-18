@@ -1,6 +1,8 @@
 // js/app.js
 import { auth, googleProvider, signInWithPopup, signOut, onAuthStateChanged, db, doc, getDoc } from './firebase-config.js';
 
+let currentPoolData = null; // Globally cache pool data for dashboard modals/actions
+
 document.addEventListener('DOMContentLoaded', () => {
   const loginModal = document.getElementById('login-modal');
   const mainContent = document.getElementById('main-content'); // Universal main container for all pages
@@ -52,7 +54,7 @@ const userAvatar = document.getElementById('user-avatar');
           await loadPageData();
 		  
           // Automatically show/hide any element with the 'admin-only' class based on the admin array
-          const isAdmin = adminEmails.includes(user.email);
+          const isAdmin = adminEmails.includes(user.email);		  
           document.querySelectorAll('.admin-only').forEach(el => {
             if (isAdmin) {
               el.classList.remove('hidden');
@@ -121,6 +123,7 @@ async function loadPageData() {
     }
 
     const poolData = poolSnap.data();
+	currentPoolData = poolData;
 	updateFooterTimestamp(poolData);
 	updateCashOnHand(poolData);
 	updateLatestContributionMonth(poolData.Contributors);
@@ -167,6 +170,8 @@ function renderContributors(contributors) {
       });
       lastTx = sortedTx[0];
     }
+	
+	//debugger;
 
     let effectiveMonthStr = '-';
     if (lastTx && lastTx.EffectiveMonth) {
@@ -178,7 +183,7 @@ function renderContributors(contributors) {
 
     let dateReceivedStr = '-';
     if (lastTx && lastTx.DateRecorded) {
-      const dateObj = new Date(lastTx.DateRecorded);
+      const dateObj = createLocalDateFromString(lastTx.DateRecorded);	  
       if (!isNaN(dateObj)) {
         dateReceivedStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       }
@@ -190,7 +195,7 @@ function renderContributors(contributors) {
 
     const txMethod = lastTx ? (lastTx.Method || '-') : '-';
     const contributorId = contributor.Id || '';
-
+	
     tr.innerHTML = `
       <td class="py-3 px-4 font-semibold text-pool-dark">${escapeHtml(contributor.Name)}</td>
       <td class="py-3 px-4 text-gray-600">${effectiveMonthStr}</td>
@@ -198,9 +203,9 @@ function renderContributors(contributors) {
       <td class="py-3 px-4 font-bold text-pool-teal">${formattedAmount}</td>
       <td class="py-3 px-4 text-gray-600">${escapeHtml(txMethod)}</td>
       <td class="py-3 px-4 text-right space-x-1">
-        <button onclick="viewContributorDetails('${escapeHtml(contributorId)}')" class="text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg text-xs font-semibold transition">Details</button>
-        <button onclick="addContribution('${escapeHtml(contributorId)}')" class="admin-only text-white bg-pool-teal hover:bg-teal-700 px-2.5 py-1 rounded-lg text-xs font-semibold transition shadow-sm">Add Contribution</button>
-        <button onclick="sendReminder('${escapeHtml(contributorId)}')" class="admin-only text-amber-700 bg-amber-50 hover:bg-amber-100 px-2.5 py-1 rounded-lg text-xs font-semibold transition">Send Reminder</button>
+        <button onclick="viewContributorDetails('${escapeHtml(contributorId)}')" class="text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-4 py-2 rounded-lg text-xs font-semibold transition">Details</button>
+        <button onclick="addContribution('${escapeHtml(contributorId)}')" class="admin-only text-white bg-pool-teal hover:bg-teal-700 px-4 py-2 rounded-lg text-xs font-semibold transition shadow-sm">Add Contribution</button>
+        <button onclick="sendReminder('${escapeHtml(contributorId)}')" class="admin-only text-amber-700 bg-amber-50 hover:bg-amber-100 px-4 py-2 rounded-lg text-xs font-semibold transition">Send Reminder</button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -247,7 +252,7 @@ function renderRecipients(recipients) {
 
     let dateSentStr = '-';
     if (lastTx && lastTx.DateRecorded) {
-      const dateObj = new Date(lastTx.DateRecorded);
+      const dateObj = createLocalDateFromString(lastTx.DateRecorded);
       if (!isNaN(dateObj)) {
         dateSentStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       }
@@ -267,8 +272,8 @@ function renderRecipients(recipients) {
       <td class="py-3 px-4 font-bold text-pool-orange">${formattedAmount}</td>
       <td class="py-3 px-4 text-gray-600">${escapeHtml(txMethod)}</td>
       <td class="py-3 px-4 text-right space-x-1">
-        <button onclick="viewRecipientDetails('${escapeHtml(recipientId)}')" class="text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg text-xs font-semibold transition">Details</button>
-        <button onclick="sendAllowance('${escapeHtml(recipientId)}')" class="admin-only text-white bg-pool-teal hover:bg-teal-700 px-2.5 py-1 rounded-lg text-xs font-semibold transition shadow-sm">Send Allowance</button>
+        <button onclick="viewRecipientDetails('${escapeHtml(recipientId)}')" class="text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-4 py-2 rounded-lg text-xs font-semibold transition">Details</button>
+        <button onclick="sendAllowance('${escapeHtml(recipientId)}')" class="admin-only text-white px-4 py-2 bg-pool-orange hover:bg-orange-700 text-white rounded-xl text-xs font-semibold transition shadow-sm">Send Allowance</button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -476,3 +481,520 @@ function updateLatestDistributionMonth(recipients) {
     kpiEl.textContent = '-';
   }
 }
+
+import { updateDoc } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
+//import { db } from "./js/firebase-config.js";
+
+// 1. Open Modal & Populate Smart Defaults
+window.addContribution = function(contributorId) {
+  const contributor = currentPoolData.Contributors.find(c => c.Id === contributorId);
+  if (!contributor) return;
+
+  // Set Modal Header Title
+  document.getElementById('add-contribution-title').textContent = `Add Contribution from ${contributor.Name}`;
+  document.getElementById('add-contrib-contributor-id').value = contributor.Id;
+
+  // Set Default Date to Today (YYYY-MM-DD format)
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('add-contrib-date').value = today;
+
+  // Default Amount (optional blank or standard default)
+  document.getElementById('add-contrib-amount').value = '';
+  document.getElementById('add-contrib-notes').value = '';
+
+  // Smart Default 1: Method (Contributor's Preferred Method, fallback to Venmo)
+  const methodSelect = document.getElementById('add-contrib-method');
+  methodSelect.value = contributor.PreferredPaymentMethod || 'Venmo';
+
+  // Smart Default 2: Month (Month after their latest transaction)
+  const monthSelect = document.getElementById('add-contrib-month');
+  let nextMonthName = new Date().toLocaleString('en-US', { month: 'long' }); // fallback to current month
+
+  if (contributor.Transactions && contributor.Transactions.length > 0) {
+    // Find latest transaction by timestamp/date
+    const sortedTx = [...contributor.Transactions].sort((a, b) => {
+      return new Date(b.Timestamp || b.DateRecorded || 0) - new Date(a.Timestamp || a.DateRecorded || 0);
+    });
+    
+    const lastTx = sortedTx[0];
+    if (lastTx && lastTx.EffectiveMonth) {
+      const lastDate = new Date(lastTx.EffectiveMonth);
+      if (!isNaN(lastDate)) {
+        // Advance by 1 month
+        lastDate.setMonth(lastDate.getMonth() + 1);
+        nextMonthName = lastDate.toLocaleString('en-US', { month: 'long' });
+      }
+    }
+  }
+  monthSelect.value = nextMonthName;
+
+  // Update Live Cash on Hand Display in footer
+  updateModalCashOnHandDisplay();
+
+  // Show Modal
+  document.getElementById('add-contribution-modal').classList.remove('hidden');
+};
+
+window.closeAddContributionModal = function() {
+  document.getElementById('add-contribution-modal').classList.add('hidden');
+};
+
+function updateModalCashOnHandDisplay() {
+  const cohEl = document.getElementById('add-contrib-cash-on-hand');
+  if (cohEl && typeof calculateCashOnHand === 'function') {
+    cohEl.textContent = `Cash On Hand: $${calculateCashOnHand(currentPoolData)}`;
+  }
+}
+
+// 2. Handle Form Submission
+document.addEventListener('DOMContentLoaded', () => {
+  const form = document.getElementById('add-contribution-form');
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const contributorId = document.getElementById('add-contrib-contributor-id').value;
+      const monthStr = document.getElementById('add-contrib-month').value;
+      const dateRecorded = document.getElementById('add-contrib-date').value;
+      const amount = Number(document.getElementById('add-contrib-amount').value);
+      const method = document.getElementById('add-contrib-method').value;
+      const notes = document.getElementById('add-contrib-notes').value.trim();
+
+      const contributorIndex = currentPoolData.Contributors.findIndex(c => c.Id === contributorId);
+      if (contributorIndex === -1) return;
+	  
+	  //debugger;
+	  // Convert month choice into a standard Date ISO string representation
+      const effectiveMonthISO = getEffectiveMonthDateString(monthStr, dateRecorded);
+
+      // Construct new transaction object
+      const newTransaction = {
+        Id: 'tx_' + Date.now(),
+        EffectiveMonth: effectiveMonthISO, // e.g. "2026-08-01T00:00:00.000Z"
+        DateRecorded: dateRecorded,
+        Amount: amount,
+        Method: method,
+        Notes: notes,
+        Timestamp: new Date().toISOString()
+      };
+	  
+	  //debugger;
+
+      // Ensure Transactions array exists
+      if (!currentPoolData.Contributors[contributorIndex].Transactions) {
+        currentPoolData.Contributors[contributorIndex].Transactions = [];
+      }
+
+      // Push to local array
+      currentPoolData.Contributors[contributorIndex].Transactions.push(newTransaction);
+
+      try {
+        // Save back to Firestore
+        const docRef = doc(db, "pools", "main-pool");
+        await updateDoc(docRef, {
+          Contributors: currentPoolData.Contributors,
+          LastUpdated: new Date().toISOString()
+        });
+
+        // Close modal, refresh table and dashboard stats
+        closeAddContributionModal();
+        renderContributors(currentPoolData.Contributors);
+        updateCashOnHand(currentPoolData);
+        updateDelinquentBadge(currentPoolData.Contributors);
+        updateLatestContributionMonth(currentPoolData.Contributors);
+
+      } catch (error) {
+        console.error("Error adding contribution:", error);
+        alert("Failed to save contribution. Please try again.");
+      }
+    });
+  }
+});
+
+//import { doc, updateDoc } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
+//import { db } from "./js/firebase-config.js";
+
+// 1. Open Modal and Populate Contributor Transactions
+window.viewContributorDetails = function(contributorId) {
+  const contributor = currentPoolData.Contributors.find(c => c.Id === contributorId);
+  if (!contributor) return;
+
+  // Set Header Title (Name + Email)
+  const emailDisplay = contributor.EmailAddress ? `(${contributor.EmailAddress})` : '';
+  document.getElementById('details-modal-title').textContent = `${contributor.Name} ${emailDisplay}`;
+
+  const tbody = document.getElementById('details-modal-tbody');
+  tbody.innerHTML = '';
+
+  const transactions = contributor.Transactions || [];
+
+  if (transactions.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-gray-500 text-sm">No transaction history found.</td></tr>`;
+  } else {
+    // Sort transactions descending by timestamp or date
+    const sortedTx = [...transactions].sort((a, b) => {
+      return new Date(b.Timestamp || b.DateRecorded || 0) - new Date(a.Timestamp || a.DateRecorded || 0);
+    });
+
+    sortedTx.forEach(tx => {
+      // Parse Year and Month from EffectiveMonth or DateRecorded
+      let yearStr = '-';
+      let monthStr = '-';
+      
+      if (tx.EffectiveMonth) {
+        // If EffectiveMonth is stored as a name like "August" or full date string
+        const parsedDate = new Date(tx.EffectiveMonth);
+        if (!isNaN(parsedDate)) {
+          yearStr = parsedDate.getFullYear();
+          monthStr = parsedDate.toLocaleDateString('en-US', { month: 'long' });
+        } else {
+          monthStr = tx.EffectiveMonth; // fallback if just stored as string
+          if (tx.DateRecorded) {
+            yearStr = new Date(tx.DateRecorded).getFullYear();
+          }
+        }
+      }
+
+      let dateReceivedStr = '-';
+      if (tx.DateRecorded) {
+        const d = createLocalDateFromString(tx.DateRecorded);
+        if (!isNaN(d)) {
+          dateReceivedStr = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+        }
+      }
+
+      const formattedAmount = tx.Amount !== undefined 
+        ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(tx.Amount) 
+        : '-';
+
+      const tr = document.createElement('tr');
+      tr.className = 'hover:bg-gray-50 transition border-b border-gray-100';
+      tr.innerHTML = `
+        <td class="py-3 px-4 text-gray-600">${yearStr}</td>
+        <td class="py-3 px-4 font-semibold text-pool-dark">${monthStr}</td>
+        <td class="py-3 px-4 font-bold text-pool-teal">${formattedAmount}</td>
+        <td class="py-3 px-4 text-gray-600">${dateReceivedStr}</td>
+        <td class="py-3 px-4 text-gray-600">${escapeHtml(tx.Method || '-')}</td>
+        <td class="py-3 px-4 text-right">
+          <button onclick="deleteContributorTransaction('${contributor.Id}', '${tx.Id}')" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-xl text-xs font-semibold transition shadow-sm">Delete</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Show modal
+  document.getElementById('contributor-details-modal').classList.remove('hidden');
+};
+
+// 2. Close Modal
+window.closeContributorDetailsModal = function() {
+  document.getElementById('contributor-details-modal').classList.add('hidden');
+};
+
+// 3. Delete Transaction Handler
+window.deleteContributorTransaction = async function(contributorId, transactionId) {
+  if (!confirm("Are you sure you want to delete this transaction?")) return;
+
+  const contributorIndex = currentPoolData.Contributors.findIndex(c => c.Id === contributorId);
+  if (contributorIndex === -1) return;
+
+  // Filter out the selected transaction
+  currentPoolData.Contributors[contributorIndex].Transactions = currentPoolData.Contributors[contributorIndex].Transactions.filter(
+    tx => tx.Id !== transactionId
+  );
+
+  try {
+    // Save updated contributors array to Firestore
+    const docRef = doc(db, "pools", "main-pool");
+    await updateDoc(docRef, {
+      Contributors: currentPoolData.Contributors,
+      LastUpdated: new Date().toISOString()
+    });
+
+    // Refresh the details modal view and dashboard summary cards/tables
+    viewContributorDetails(contributorId);
+    renderContributors(currentPoolData.Contributors);
+    updateCashOnHand(currentPoolData);
+    updateDelinquentBadge(currentPoolData.Contributors);
+    updateLatestContributionMonth(currentPoolData.Contributors);
+
+  } catch (error) {
+    console.error("Error deleting transaction:", error);
+    alert("Failed to delete transaction. Please try again.");
+  }
+};
+
+// Helper to construct a standard Date object/string for the first of the selected month
+function getEffectiveMonthDateString(monthName, selectedDateRecorded) {
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+  
+  const monthIndex = monthNames.indexOf(monthName);
+  
+  // Use the year from the Date Recorded field, or fallback to current year
+  let year = new Date().getFullYear();
+  if (selectedDateRecorded) {
+    const recDate = new Date(selectedDateRecorded);
+    if (!isNaN(recDate)) {
+      year = recDate.getFullYear();
+    }
+  }
+
+  if (monthIndex !== -1) {
+    // Create Date object set to 1st of that month at midnight local time
+    const dateObj = new Date(year, monthIndex, 1);
+    return dateObj.toISOString(); // e.g. "2026-08-01T00:00:00.000Z" (or corresponding local shift)
+  }
+
+  // Fallback to current date ISO string if unmapped
+  return new Date().toISOString();
+}
+
+
+function createLocalDateFromString(dateStr) {
+	//debugger;
+  // Works for "YYYY-MM-DD" or "YYYY-MM-DD HH:mm:ss"
+  const [datePart, timePart] = dateStr.split(/[ T]/); 
+  const [year, month, day] = datePart.split('-').map(Number);
+  
+  const hours = timePart ? Number(timePart.split(':')[0]) : 0;
+  const minutes = timePart ? Number(timePart.split(':')[1]) : 0;
+  const seconds = timePart ? Number(timePart.split(':')[2]) : 0;
+
+  // Subtract 1 from month because JavaScript months are 0-11
+  return new Date(year, month - 1, day, hours, minutes, seconds);
+}
+
+//import { doc, updateDoc } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
+//import { db } from "./js/firebase-config.js";
+
+// 1. Open Send Allowance Modal & Populate Smart Defaults
+window.sendAllowance = function(recipientId) {
+  const recipient = currentPoolData.Recipients.find(r => r.Id === recipientId);
+  if (!recipient) return;
+
+  // Set Modal Header Title
+  document.getElementById('send-allowance-title').textContent = `Send Allowance to ${recipient.Name}`;
+  document.getElementById('allowance-recipient-id').value = recipient.Id;
+
+  // Set Default Date to Today (YYYY-MM-DD)
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('allowance-date').value = today;
+
+  document.getElementById('allowance-amount').value = '';
+  document.getElementById('allowance-notes').value = '';
+
+  // Smart Default 1: Preferred Payment Method (fallback to Zelle)
+  const methodSelect = document.getElementById('allowance-method');
+  methodSelect.value = recipient.PreferredPaymentMethod || 'Zelle';
+
+  // Smart Default 2: Month (Month after their latest transaction)
+  const monthSelect = document.getElementById('allowance-month');
+  let nextMonthName = new Date().toLocaleString('en-US', { month: 'long' });
+
+  if (recipient.Transactions && recipient.Transactions.length > 0) {
+    const sortedTx = [...recipient.Transactions].sort((a, b) => {
+      return new Date(b.Timestamp || b.DateRecorded || 0) - new Date(a.Timestamp || a.DateRecorded || 0);
+    });
+    
+    const lastTx = sortedTx[0];
+    if (lastTx && lastTx.EffectiveMonth) {
+      const lastDate = new Date(lastTx.EffectiveMonth);
+      if (!isNaN(lastDate)) {
+        lastDate.setMonth(lastDate.getMonth() + 1);
+        nextMonthName = lastDate.toLocaleString('en-US', { month: 'long' });
+      }
+    }
+  }
+  monthSelect.value = nextMonthName;
+
+  // Update Live Cash on Hand Display in footer
+  updateAllowanceCashOnHandDisplay();
+
+  // Show Modal
+  document.getElementById('send-allowance-modal').classList.remove('hidden');
+};
+
+window.closeSendAllowanceModal = function() {
+  document.getElementById('send-allowance-modal').classList.add('hidden');
+};
+
+function updateAllowanceCashOnHandDisplay() {
+  const cohEl = document.getElementById('allowance-cash-on-hand');
+  if (cohEl && typeof calculateCashOnHand === 'function') {
+    cohEl.textContent = `Cash On Hand: $${calculateCashOnHand(currentPoolData)}`;
+  }
+}
+
+// 2. Handle Send Allowance Form Submission
+document.addEventListener('DOMContentLoaded', () => {
+  const form = document.getElementById('send-allowance-form');
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const recipientId = document.getElementById('allowance-recipient-id').value;
+      const monthStr = document.getElementById('allowance-month').value;
+      const dateRecorded = document.getElementById('allowance-date').value;
+      const amount = Number(document.getElementById('allowance-amount').value);
+      const method = document.getElementById('allowance-method').value;
+      const notes = document.getElementById('allowance-notes').value.trim();
+
+      const recipientIndex = currentPoolData.Recipients.findIndex(r => r.Id === recipientId);
+      if (recipientIndex === -1) return;
+
+      const effectiveMonthISO = getEffectiveMonthDateString(monthStr, dateRecorded);
+
+      // Construct new distribution transaction object
+      const newTransaction = {
+        Id: 'tx_' + Date.now(),
+        EffectiveMonth: effectiveMonthISO,
+        DateRecorded: dateRecorded,
+        Amount: amount,
+        Method: method,
+        Notes: notes,
+        Timestamp: new Date().toISOString()
+      };
+
+      if (!currentPoolData.Recipients[recipientIndex].Transactions) {
+        currentPoolData.Recipients[recipientIndex].Transactions = [];
+      }
+
+      currentPoolData.Recipients[recipientIndex].Transactions.push(newTransaction);
+
+      try {
+        // Save back to Firestore
+        const docRef = doc(db, "pools", "main-pool");
+        await updateDoc(docRef, {
+          Recipients: currentPoolData.Recipients,
+          LastUpdated: new Date().toISOString()
+        });
+
+        // Close modal and refresh UI/KPIs
+        closeSendAllowanceModal();
+        renderRecipients(currentPoolData.Recipients);
+        updateCashOnHand(currentPoolData);
+        updateLatestDistributionMonth(currentPoolData.Recipients);
+
+      } catch (error) {
+        console.error("Error sending allowance:", error);
+        alert("Failed to save allowance distribution. Please try again.");
+      }
+    });
+  }
+});
+
+//import { doc, updateDoc } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
+//import { db } from "./js/firebase-config.js";
+
+
+// 1. Open Recipient Details Modal & Populate Data
+window.viewRecipientDetails = function(recipientId) {
+  const recipient = currentPoolData.Recipients.find(r => r.Id === recipientId);
+  if (!recipient) return;
+
+  // Set Header Title (Name + Optional Email)
+  const emailDisplay = recipient.EmailAddress ? `(${recipient.EmailAddress})` : '';
+  document.getElementById('recipient-details-modal-title').textContent = `${recipient.Name} ${emailDisplay}`;
+
+  const tbody = document.getElementById('recipient-details-modal-tbody');
+  tbody.innerHTML = '';
+
+  const transactions = recipient.Transactions || [];
+
+  if (transactions.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-gray-500 text-sm">No transaction history found.</td></tr>`;
+  } else {
+    // Sort transactions descending by timestamp or recorded date
+    const sortedTx = [...transactions].sort((a, b) => {
+      return new Date(b.Timestamp || b.DateRecorded || 0) - new Date(a.Timestamp || a.DateRecorded || 0);
+    });
+
+    sortedTx.forEach(tx => {
+      let yearStr = '-';
+      let monthStr = '-';
+      
+      if (tx.EffectiveMonth) {
+        const parsedDate = new Date(tx.EffectiveMonth);
+        if (!isNaN(parsedDate)) {
+          yearStr = parsedDate.getFullYear();
+          monthStr = parsedDate.toLocaleDateString('en-US', { month: 'long' });
+        } else {
+          monthStr = tx.EffectiveMonth;
+          if (tx.DateRecorded) {
+            yearStr = new Date(tx.DateRecorded).getFullYear();
+          }
+        }
+      }
+
+      let dateReceivedStr = '-';
+      if (tx.DateRecorded) {
+        const d = createLocalDateFromString(tx.DateRecorded);
+        if (!isNaN(d)) {
+          dateReceivedStr = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+        }
+      }
+
+      const formattedAmount = tx.Amount !== undefined 
+        ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(tx.Amount) 
+        : '-';
+
+      const tr = document.createElement('tr');
+      tr.className = 'hover:bg-gray-50 transition border-b border-gray-100';
+      tr.innerHTML = `
+        <td class="py-3 px-4 text-gray-600">${yearStr}</td>
+        <td class="py-3 px-4 font-semibold text-pool-dark">${monthStr}</td>
+        <td class="py-3 px-4 font-bold text-pool-orange">${formattedAmount}</td>
+        <td class="py-3 px-4 text-gray-600">${dateReceivedStr}</td>
+        <td class="py-3 px-4 text-gray-600">${escapeHtml(tx.Method || '-')}</td>
+        <td class="py-3 px-4 text-right">
+          <button onclick="deleteRecipientTransaction('${recipient.Id}', '${tx.Id}')" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-xl text-xs font-semibold transition shadow-sm">Delete</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Show Modal
+  document.getElementById('recipient-details-modal').classList.remove('hidden');
+};
+
+// 2. Close Modal
+window.closeRecipientDetailsModal = function() {
+  document.getElementById('recipient-details-modal').classList.add('hidden');
+};
+
+// 3. Delete Recipient Transaction Handler
+window.deleteRecipientTransaction = async function(recipientId, transactionId) {
+  if (!confirm("Are you sure you want to delete this distribution record?")) return;
+
+  const recipientIndex = currentPoolData.Recipients.findIndex(r => r.Id === recipientId);
+  if (recipientIndex === -1) return;
+
+  // Filter out the selected transaction
+  currentPoolData.Recipients[recipientIndex].Transactions = currentPoolData.Recipients[recipientIndex].Transactions.filter(
+    tx => tx.Id !== transactionId
+  );
+
+  try {
+    // Save updated recipients array back to Firestore
+    const docRef = doc(db, "pools", "main-pool");
+    await updateDoc(docRef, {
+      Recipients: currentPoolData.Recipients,
+      LastUpdated: new Date().toISOString()
+    });
+
+    // Refresh modal, recipient table, and KPI metrics
+    viewRecipientDetails(recipientId);
+    renderRecipients(currentPoolData.Recipients);
+    updateCashOnHand(currentPoolData);
+    updateLatestDistributionMonth(currentPoolData.Recipients);
+
+  } catch (error) {
+    console.error("Error deleting transaction:", error);
+    alert("Failed to delete distribution transaction. Please try again.");
+  }
+};
