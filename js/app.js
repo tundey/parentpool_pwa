@@ -1,5 +1,5 @@
 // js/app.js
-import { auth, googleProvider, signInWithPopup, signOut, onAuthStateChanged, db, doc, getDoc } from './firebase-config.js';
+import { auth, googleProvider, signInWithPopup, signOut, onAuthStateChanged, db, doc, getDoc, getFunctions, httpsCallable } from './firebase-config.js';
 
 let currentPoolData = null; // Globally cache pool data for dashboard modals/actions
 
@@ -171,8 +171,6 @@ function renderContributors(contributors) {
       lastTx = sortedTx[0];
     }
 	
-	//debugger;
-
     let effectiveMonthStr = '-';
     if (lastTx && lastTx.EffectiveMonth) {
       const dateObj = new Date(lastTx.EffectiveMonth);
@@ -205,7 +203,7 @@ function renderContributors(contributors) {
       <td class="py-3 px-4 text-right space-x-1">
         <button onclick="viewContributorDetails('${escapeHtml(contributorId)}')" class="text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-4 py-2 rounded-lg text-xs font-semibold transition">Details</button>
         <button onclick="addContribution('${escapeHtml(contributorId)}')" class="admin-only text-white bg-pool-teal hover:bg-teal-700 px-4 py-2 rounded-lg text-xs font-semibold transition shadow-sm">Add Contribution</button>
-        <button onclick="sendReminder('${escapeHtml(contributorId)}')" class="admin-only text-amber-700 bg-amber-50 hover:bg-amber-100 px-4 py-2 rounded-lg text-xs font-semibold transition">Send Reminder</button>
+        <button onclick="sendReminder('${escapeHtml(contributor.Name)}', '${escapeHtml(contributor.EmailAddress)}')" class="admin-only text-amber-700 bg-amber-50 hover:bg-amber-100 px-4 py-2 rounded-lg text-xs font-semibold transition">Send Reminder</button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -563,7 +561,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const contributorIndex = currentPoolData.Contributors.findIndex(c => c.Id === contributorId);
       if (contributorIndex === -1) return;
 	  
-	  //debugger;
 	  // Convert month choice into a standard Date ISO string representation
       const effectiveMonthISO = getEffectiveMonthDateString(monthStr, dateRecorded);
 
@@ -578,8 +575,6 @@ document.addEventListener('DOMContentLoaded', () => {
         Timestamp: new Date().toISOString()
       };
 	  
-	  //debugger;
-
       // Ensure Transactions array exists
       if (!currentPoolData.Contributors[contributorIndex].Transactions) {
         currentPoolData.Contributors[contributorIndex].Transactions = [];
@@ -755,7 +750,6 @@ function getEffectiveMonthDateString(monthName, selectedDateRecorded) {
 
 
 function createLocalDateFromString(dateStr) {
-	//debugger;
   // Works for "YYYY-MM-DD" or "YYYY-MM-DD HH:mm:ss"
   const [datePart, timePart] = dateStr.split(/[ T]/); 
   const [year, month, day] = datePart.split('-').map(Number);
@@ -998,3 +992,4 @@ window.deleteRecipientTransaction = async function(recipientId, transactionId) {
     alert("Failed to delete distribution transaction. Please try again.");
   }
 };
+
