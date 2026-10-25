@@ -65,7 +65,7 @@ export async function sendEmailNotification(name, emailAddress, subject, message
   console.log(`Subject: ${subject}`)
   console.log(`Message: ${message}`)
   
-  return true;
+  //return true;
 
   try {
     const functions = getFunctions();
