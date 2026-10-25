@@ -1,5 +1,5 @@
 // js/app.js
-import { auth, googleProvider, signInWithPopup, signOut, onAuthStateChanged, db, doc, getDoc } from './firebase-config.js';
+import { auth, googleProvider, signInWithPopup, signOut, onAuthStateChanged, db, doc, getDoc, getFunctions, httpsCallable } from './firebase-config.js';
 
 let currentPoolData = null; // Globally cache pool data for dashboard modals/actions
 
@@ -171,8 +171,6 @@ function renderContributors(contributors) {
       lastTx = sortedTx[0];
     }
 	
-	//debugger;
-
     let effectiveMonthStr = '-';
     if (lastTx && lastTx.EffectiveMonth) {
       const dateObj = new Date(lastTx.EffectiveMonth);
@@ -195,7 +193,7 @@ function renderContributors(contributors) {
 
     const txMethod = lastTx ? (lastTx.Method || '-') : '-';
     const contributorId = contributor.Id || '';
-	
+
     tr.innerHTML = `
       <td class="py-3 px-4 font-semibold text-pool-dark">${escapeHtml(contributor.Name)}</td>
       <td class="py-3 px-4 text-gray-600">${effectiveMonthStr}</td>
@@ -205,11 +203,20 @@ function renderContributors(contributors) {
       <td class="py-3 px-4 text-right space-x-1">
         <button onclick="viewContributorDetails('${escapeHtml(contributorId)}')" class="text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-4 py-2 rounded-lg text-xs font-semibold transition">Details</button>
         <button onclick="addContribution('${escapeHtml(contributorId)}')" class="admin-only text-white bg-pool-teal hover:bg-teal-700 px-4 py-2 rounded-lg text-xs font-semibold transition shadow-sm">Add Contribution</button>
-        <button onclick="sendReminder('${escapeHtml(contributorId)}')" class="admin-only text-amber-700 bg-amber-50 hover:bg-amber-100 px-4 py-2 rounded-lg text-xs font-semibold transition">Send Reminder</button>
+		<button onclick="sendReminderHelper('${contributor.Id}')" class="admin-only text-amber-700 bg-amber-50 hover:bg-amber-100 px-4 py-2 rounded-lg text-xs font-semibold transition">Send Reminder</button>
       </td>
     `;
     tbody.appendChild(tr);
   });
+}
+
+window.sendReminderHelper = function(contributorId){	
+	const contributor = currentPoolData.Contributors.find(c => c.Id === contributorId);	
+	const summary = getContributorSummary(contributor);
+	
+	sendReminder(contributor.Name, contributor.EmailAddress, summary.nextContributionMonth, summary.lastContributionMonth, summary.lastContributionDate)
+	
+	return true;	
 }
 
 function renderRecipients(recipients) {
@@ -495,7 +502,7 @@ window.addContribution = function(contributorId) {
   document.getElementById('add-contrib-contributor-id').value = contributor.Id;
 
   // Set Default Date to Today (YYYY-MM-DD format)
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalDateString();
   document.getElementById('add-contrib-date').value = today;
 
   // Default Amount (optional blank or standard default)
@@ -563,7 +570,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const contributorIndex = currentPoolData.Contributors.findIndex(c => c.Id === contributorId);
       if (contributorIndex === -1) return;
 	  
-	  //debugger;
 	  // Convert month choice into a standard Date ISO string representation
       const effectiveMonthISO = getEffectiveMonthDateString(monthStr, dateRecorded);
 
@@ -578,8 +584,6 @@ document.addEventListener('DOMContentLoaded', () => {
         Timestamp: new Date().toISOString()
       };
 	  
-	  //debugger;
-
       // Ensure Transactions array exists
       if (!currentPoolData.Contributors[contributorIndex].Transactions) {
         currentPoolData.Contributors[contributorIndex].Transactions = [];
@@ -602,6 +606,10 @@ document.addEventListener('DOMContentLoaded', () => {
         updateCashOnHand(currentPoolData);
         updateDelinquentBadge(currentPoolData.Contributors);
         updateLatestContributionMonth(currentPoolData.Contributors);
+		
+	  // Send confirmation Email
+	  const contributor = currentPoolData.Contributors.find(c => c.Id === contributorId);
+	  sendContributionConfirmation(contributor.Name, contributor.EmailAddress, amount, monthStr, dateRecorded);
 
       } catch (error) {
         console.error("Error adding contribution:", error);
@@ -755,7 +763,6 @@ function getEffectiveMonthDateString(monthName, selectedDateRecorded) {
 
 
 function createLocalDateFromString(dateStr) {
-	//debugger;
   // Works for "YYYY-MM-DD" or "YYYY-MM-DD HH:mm:ss"
   const [datePart, timePart] = dateStr.split(/[ T]/); 
   const [year, month, day] = datePart.split('-').map(Number);
@@ -781,7 +788,7 @@ window.sendAllowance = function(recipientId) {
   document.getElementById('allowance-recipient-id').value = recipient.Id;
 
   // Set Default Date to Today (YYYY-MM-DD)
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalDateString();
   document.getElementById('allowance-date').value = today;
 
   document.getElementById('allowance-amount').value = '';
@@ -878,6 +885,11 @@ document.addEventListener('DOMContentLoaded', () => {
         renderRecipients(currentPoolData.Recipients);
         updateCashOnHand(currentPoolData);
         updateLatestDistributionMonth(currentPoolData.Recipients);
+		
+		// Send email to contributors
+		const recipient = currentPoolData.Recipients.find(r => r.Id === recipientId);
+		currentPoolData.Contributors.forEach(contributor => { sendPaymentNotification(contributor.Name, contributor.EmailAddress, recipient.Name, monthStr, amount, dateRecorded); }
+		);  
 
       } catch (error) {
         console.error("Error sending allowance:", error);
@@ -886,10 +898,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
-
-//import { doc, updateDoc } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
-//import { db } from "./js/firebase-config.js";
-
 
 // 1. Open Recipient Details Modal & Populate Data
 window.viewRecipientDetails = function(recipientId) {
@@ -998,3 +1006,53 @@ window.deleteRecipientTransaction = async function(recipientId, transactionId) {
     alert("Failed to delete distribution transaction. Please try again.");
   }
 };
+
+
+/**
+ * Calculates contribution details for a given contributor.
+ * 
+ * @param {Object} contributor - The contributor object containing transactions/deposits.
+ * @returns {Object} An object containing nextContributionMonth, lastContributionMonth, and lastContributionDate.
+ */
+export function getContributorSummary(contributor) {
+  // Fallback to empty array if no transactions or deposits exist yet
+  const records = contributor.Transactions || [];
+
+  if (records.length === 0) {
+    return {
+      nextContributionMonth: "Pending",
+      lastContributionMonth: "None",
+      lastContributionDate: "N/A"
+    };
+  }
+
+  // 1. Sort records chronologically (newest first) to find the most recent one
+  const sortedRecords = [...records].sort((a, b) => {
+    const dateA = parseDate(a.EffectiveMonth);
+    const dateB = parseDate(b.EffectiveMonth);
+    return dateB - dateA; // Descending order
+  });
+
+  const latestRecord = sortedRecords[0];
+  const lastEffectiveDateObj = parseDate(latestRecord.EffectiveMonth);
+  const lastDateObj = parseDate(latestRecord.DateRecorded);
+
+  // 2. Format Last Contribution Date (e.g., "6-8-2026")
+  const lastContributionDate = isNaN(lastDateObj.getTime()) ? "N/A" : `${lastDateObj.getMonth() + 1}-${lastDateObj.getDate()}-${lastDateObj.getFullYear()}`;
+
+  // 3. Get Last Contribution Month Name (e.g., "May")
+  const lastContributionMonth = isNaN(lastEffectiveDateObj.getTime()) ? "Unknown" : lastEffectiveDateObj.toLocaleString('default', { month: 'long' });
+
+  // 4. Calculate Next Contribution Month (e.g., exactly 1 month after the last contribution)
+  const nextDateObj = new Date(lastEffectiveDateObj);
+  nextDateObj.setMonth(nextDateObj.getMonth() + 1);
+  const nextContributionMonth = isNaN(nextDateObj.getTime()) ? "Unknown" : nextDateObj.toLocaleString('default', { month: 'long' });
+
+  return {
+    nextContributionMonth,
+    lastContributionMonth,
+    lastContributionDate
+  };
+}
+
+

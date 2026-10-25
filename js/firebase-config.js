@@ -19,6 +19,8 @@ import {
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-analytics.js";
 
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-functions.js";
+
 // TODO: Replace with your actual Firebase project configuration credentials
 const firebaseConfig = {
   apiKey: "AIzaSyDHr2sXjCgPYuh0rLbTAM5lLz8PtAdrMos",
@@ -37,4 +39,7 @@ const db = getFirestore(app);
 const analytics = getAnalytics(app);
 const googleProvider = new GoogleAuthProvider();
 
-export { auth, db, analytics, googleProvider, signInWithPopup, signOut, onAuthStateChanged, collection, doc, getDocs, setDoc, deleteDoc, onSnapshot, getDoc };
+// Initialize Cloud Functions bound to this app instance
+const functions = getFunctions(app);
+
+export { auth, db, analytics, googleProvider, signInWithPopup, signOut, onAuthStateChanged, collection, doc, getDocs, setDoc, deleteDoc, onSnapshot, getDoc, getFunctions, httpsCallable };

@@ -1,7 +1,7 @@
 {
   "name": "ParentPool",
   "short_name": "ParentPool",
-  "start_url": "/index.html",
+  "start_url": "index.html",
   "display": "standalone",
   "background_color": "#FAF9F5",
   "theme_color": "#FF7A28",
