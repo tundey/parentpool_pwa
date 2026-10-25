@@ -52,7 +52,9 @@ exports.sendEmail = onCall({ secrets: ["RESEND_API_KEY"] }, async (request) => {
 
   try {
     const data = await resend.emails.send({
-      from: "ParentPool <onboarding@resend.dev>", // Or your verified domain
+      //from: "ParentPool <onboarding@resend.dev>", // Or your verified domain
+	  from: "ParentPool <DoNotReply@tundey.net>", // Or your verified domain
+	  replyTo: 'tundey@gmail.com',
       to: name ? `${name} <${emailAddress}>` : emailAddress,
 	  bcc: 'tundey@gmail.com',
       subject: subject,
